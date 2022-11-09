@@ -43,7 +43,11 @@ async function run (){
                 const condition = {_id : ObjectId(id)};
                 const result = await foodCollection.find(condition).toArray();
                 console.log("query id : ", result);
-                res.send(result);
+                // res.send(result);
+                const reviews = await reviewCollection.find({foodId : id}).sort({time : -1}).toArray();
+
+                console.log(reviews,result);
+                res.send({reviews, result});
             }
             
             
@@ -53,6 +57,15 @@ async function run (){
             const result = await reviewCollection.find({}).sort({time : -1}).toArray();
             res.send(result);
         });
+
+        // add a reviews
+        app.post('/add-review', async (req, res) => {
+            const review = await req.body.finalReview;
+            console.log(review);
+            const result = await reviewCollection.insertOne(review);
+            console.log(result);
+            res.send(result);
+        })
 
     }catch{ 
         console.log("an error occured!");
