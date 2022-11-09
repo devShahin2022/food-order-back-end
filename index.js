@@ -66,6 +66,16 @@ async function run (){
             console.log(result);
             res.send(result);
         })
+        // fetch review by email
+        app.get('/reviews-by-email', async (req, res)=>{
+            const email =await req.query.email;
+            console.log(email);
+            if(email !== ''){
+                const result = await reviewCollection.find({ userEmail : email }).sort({time : -1}).toArray();
+                console.log(result);
+                res.send(result);
+            }
+        })
 
         // add services
         app.post('/add-service', async (req, res) => {
