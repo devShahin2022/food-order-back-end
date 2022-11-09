@@ -94,6 +94,23 @@ async function run (){
             res.send(result);
         })
 
+        // update review
+        app.put('/update-review', async (req, res) => {
+            const ratting =await req.body.updatedRatting;
+            const text =await req.body.updatedText;
+            const id =await req.body.id;
+            const date = new Date();
+            const time = date.getTime();
+            const setData = {
+                ratings : ratting,
+                revText : text,
+                time : time
+            }
+            const result = await reviewCollection.updateOne({_id : ObjectId(id)}, {$set : setData})
+            console.log(result);
+            res.send(result);
+        })
+
     }catch{ 
         console.log("an error occured!");
     }
