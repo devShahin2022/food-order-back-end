@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
@@ -109,6 +110,13 @@ async function run (){
             const result = await reviewCollection.updateOne({_id : ObjectId(id)}, {$set : setData})
             console.log(result);
             res.send(result);
+        })
+
+        // get jwt token
+        app.post('/jwt', async (req, res) => {
+            const email = await req.body.email;
+            const token = jwt.sign({email}, process.env.ACCESS_TOKEN_SECRET, {expiresIn : '7d'});
+            res.send({token});
         })
 
     }catch{ 
