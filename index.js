@@ -15,6 +15,27 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.r3k7any.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+// Token middleware
+
+const verifyToken = (req, res, next) => {
+    const tokenInfo = req.headers.accesstoken;
+    if(!tokenInfo){
+        return res.status(401).send({'message' : 'unauthorized user'});
+    }
+    const arr = tokenInfo.split(" ");
+    const token = arr[1];
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET , function(err, decoded) {
+        if(err){
+            return res.status(401).send({'message' : 'unauthorized user'})
+        }else{
+            // console.log("after check user jwt : ", decoded);
+            req.decoded = decoded;
+        }
+    });
+    next();
+}
+
 
 
 // database query
@@ -43,11 +64,11 @@ async function run (){
             if(id !== ''){
                 const condition = {_id : ObjectId(id)};
                 const result = await foodCollection.find(condition).toArray();
-                console.log("query id : ", result);
+                // console.log("query id : ", result);
                 // res.send(result);
                 const reviews = await reviewCollection.find({foodId : id}).sort({time : -1}).toArray();
 
-                console.log(reviews,result);
+                // console.log(reviews,result);
                 res.send({reviews, result});
             }
             
@@ -62,54 +83,66 @@ async function run (){
         // add a reviews
         app.post('/add-review', async (req, res) => {
             const review = await req.body.finalReview;
-            console.log(review);
+            // console.log(review);
             const result = await reviewCollection.insertOne(review);
-            console.log(result);
+            // console.log(result);
             res.send(result);
         })
         // fetch review by email
-        app.get('/reviews-by-email', async (req, res)=>{
-            const email =await req.query.email;
-            console.log(email);
-            if(email !== ''){
+        app.post('/reviews-by-email', verifyToken, async (req, res)=>{
+            const decoded = req.decoded;
+            const email =await req.body.email;
+            if(decoded.email === email){
                 const result = await reviewCollection.find({ userEmail : email }).sort({time : -1}).toArray();
-                console.log(result);
                 res.send(result);
+            }else{
+                res.status(401).send({'message' : 'unauthorized user'})
             }
         })
 
         // add services
         app.post('/add-service', async (req, res) => {
             const data = await req.body.finalUploadData;
-            console.log(data);
+            // console.log(data);
             const result = await foodCollection.insertOne(data);
-            console.log(result);
+            // console.log(result);
             res.send(result);
         })
 
         // delete review
-        app.delete('/delete-review', async (req,res) => {
-            const delId =await req.body.reviewId;
-            const result = await reviewCollection.deleteOne({ _id: ObjectId(delId) });
-            console.log("delete id ", result);
-            res.send(result);
+        app.delete('/delete-review',verifyToken, async (req,res) => {
+            const decoded = req.decoded;
+            const email =await req.body.email;
+            if(decoded.email === email){
+                const delId =await req.body.reviewId;
+                const result = await reviewCollection.deleteOne({ _id: ObjectId(delId) });
+                res.send(result);
+            }else{
+                res.status(401).send({'message' : 'unauthorized user'})
+            }
         })
 
         // update review
-        app.put('/update-review', async (req, res) => {
-            const ratting =await req.body.updatedRatting;
-            const text =await req.body.updatedText;
-            const id =await req.body.id;
-            const date = new Date();
-            const time = date.getTime();
-            const setData = {
-                ratings : ratting,
-                revText : text,
-                time : time
+        app.put('/update-review',verifyToken, async (req, res) => {
+            const decoded = req.decoded;
+            const email =await req.body.email;
+
+            if(decoded.email === email){
+                const ratting =await req.body.updatedRatting;
+                const text =await req.body.updatedText;
+                const id =await req.body.id;
+                const date = new Date();
+                const time = date.getTime();
+                const setData = {
+                    ratings : ratting,
+                    revText : text,
+                    time : time
+                }
+                const result = await reviewCollection.updateOne({_id : ObjectId(id)}, {$set : setData})
+                res.send(result);
+            }else{
+                res.status(401).send({'message' : 'unauthorized user'})
             }
-            const result = await reviewCollection.updateOne({_id : ObjectId(id)}, {$set : setData})
-            console.log(result);
-            res.send(result);
         })
 
         // get jwt token
