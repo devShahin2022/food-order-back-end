@@ -67,6 +67,15 @@ async function run (){
             res.send(result);
         })
 
+        // add services
+        app.post('/add-service', async (req, res) => {
+            const data = await req.body.finalUploadData;
+            console.log(data);
+            const result = await foodCollection.insertOne(data);
+            console.log(result);
+            res.send(result);
+        })
+
     }catch{ 
         console.log("an error occured!");
     }
