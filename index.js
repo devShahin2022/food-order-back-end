@@ -86,6 +86,14 @@ async function run (){
             res.send(result);
         })
 
+        // delete review
+        app.delete('/delete-review', async (req,res) => {
+            const delId =await req.body.reviewId;
+            const result = await reviewCollection.deleteOne({ _id: ObjectId(delId) });
+            console.log("delete id ", result);
+            res.send(result);
+        })
+
     }catch{ 
         console.log("an error occured!");
     }
