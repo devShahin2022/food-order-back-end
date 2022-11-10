@@ -36,8 +36,6 @@ const verifyToken = (req, res, next) => {
     next();
 }
 
-
-
 // database query
 
 async function run (){
