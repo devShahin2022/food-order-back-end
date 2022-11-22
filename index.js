@@ -1,10 +1,57 @@
 const express = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
 const jwt = require('jsonwebtoken');
 const app = express();
+const fs = require('fs');
 const port = process.env.PORT || 5000;
 require('dotenv').config();
+
+// for multer
+const UPLOADS_FOLDER = './public/uploads/photos/';
+
+
+app.use(express.static('public'));
+
+let files = [];
+
+const storage = multer.diskStorage({
+    destination : (req, file, cb) => {
+        cb(null, UPLOADS_FOLDER);
+    },
+    filename : (req, file, cb) => {
+        const fileExtention = path.extname(file.originalname);
+        const filename = file.originalname.replace(fileExtention, '')
+            .toLocaleLowerCase()
+            .split(" ")
+            .join(".") + "-" + Date.now();
+
+            const fileName = filename + fileExtention;
+            files.push(fileName);
+            req.body.myFile = files;
+        cb(null, fileName);
+    }
+});
+
+const upload  = multer({
+    storage : storage,
+    limits : {
+        fileSize : 6000000, // 6 MB
+    },
+    fileFilter : (req, file, cb) => {
+        if(file.mimetype === 'image/png' || 
+           file.mimetype === 'image/jpg' ||
+           file.mimetype === 'image/jpeg'
+            ){
+                cb(null, true);
+            }else{
+                cb(new Error("Only jpg,png, jped support"));
+            }
+    }
+
+});
 
 // middlewares
 app.use(cors());
@@ -45,6 +92,7 @@ async function run (){
         // ===============================================
         const foodCollection = client.db('assignment11db').collection('foods');
         const reviewCollection = client.db('assignment11db').collection('reviews');
+        const galleryCollection = client.db('assignment11db').collection('gallery');
 
         // fetch all foods
         app.get('/services', async (req, res) => {
@@ -150,6 +198,56 @@ async function run (){
             res.send({token});
         })
 
+        // file upload 
+        app.post('/upload-file',upload.array('files'), async (req,res) => {
+            let successUpload = 0;
+            const host =await req.body.hostName;
+            let files1 = '';
+            files1 = await req.body.myFile;
+            const fileLen = files?.length;
+            files = []; // files array empty set...
+            if(fileLen < 1){
+                let status = false;
+                res.send({status, fileLen});
+            }
+           
+            let status = true;
+            files1.forEach(async f => {
+                successUpload++ ;
+                const url = await { imagePath : `${host}/uploads/photos/${f}`, time : Date.now()};
+                const result =await galleryCollection.insertOne(url);
+            });
+            console.log('latest man ', successUpload);
+            if(successUpload === fileLen){
+                successUpload = 0;
+                console.log('after send request ', successUpload);
+                res.send({status, fileLen, successUpload});
+            }
+        });
+
+        // photo fetch 
+        app.get('/get-file', async (req, res) => {
+            const result = await galleryCollection.find({}).sort({time : -1}).toArray();
+            res.send(result);
+        });
+
+        // delete file by routing
+        app.post('/delete-each-file',async(req, res) => {
+            const getPhotoFullPath = await req.body.imgPath;
+            const pathDevide = getPhotoFullPath.split('/');
+            const imgName = pathDevide[pathDevide.length - 1];
+            const path = `./public/uploads/photos/${imgName}`;
+            fs.unlink(path, async (err) => {
+                if (err) {
+                    res.send({status : false , msg : "an error occured!"});
+                }else{
+                    const result = await galleryCollection.deleteOne({ imagePath: getPhotoFullPath });
+                    if(result.acknowledged){
+                        res.send({status : true , msg : "File delete success"});
+                    }
+                }
+              });
+        })
     }catch{ 
         console.log("an error occured!");
     }
